@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/jesse/Developing/c/chip8_emulator/src/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
