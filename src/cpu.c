@@ -107,7 +107,7 @@ void load_fontset() {
     cpu->memory[i + 0x50] = fontSet[i];
   }
 
-  bool containsNull;
+  bool containsNull = false;
 
   for (int i = 0; i < 80; i++) {
     if (cpu->memory[i + 0x50] == 0) {
@@ -118,5 +118,17 @@ void load_fontset() {
   }
   if (!containsNull) {
     printf("Font Loaded correctly into memory \n");
+  }
+}
+
+void cpu_cycle() {
+  fetch_instruction();
+  exec_instructions();
+}
+
+void cpu_cleanup() {
+  if (cpu != NULL) {
+    free(cpu);
+    cpu = NULL;
   }
 }

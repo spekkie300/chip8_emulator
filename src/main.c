@@ -3,6 +3,9 @@
 #include <SDL3/SDL_main.h>
 #include <stdio.h>
 
+#define BGCOLOR 0x6495EDFF
+#define FGCOLOR 0xF4D570FF
+
 // Keymap used later to compare input events
 // TODO: Implement SDL input polling and compoare it based on scancode
 SDL_Keycode key_map[16] = {SDLK_1, SDLK_2, SDLK_3, SDLK_4, SDLK_Q, SDLK_W,
@@ -44,6 +47,7 @@ int initSDL() {
 
   texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
                               SDL_TEXTUREACCESS_STREAMING, SCR_W, SCR_H);
+  SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
   if (texture == NULL) {
     SDL_Log("Error: Couldn't create texture: %s \n", SDL_GetError());
   }
@@ -54,6 +58,30 @@ int initSDL() {
 
   printf("Succesfully initialized SDL \n");
   return 1;
+}
+
+void drawSDL() {
+  void *pixels;
+  int pitch;
+
+  SDL_LockTexture(texture, NULL, &pixels, &pitch);
+
+  SDL_FRect fill = {0, 0, SCR_W * SCALE, SCR_H * SCALE};
+  uint8_t r = (BGCOLOR >> 24);
+  uint8_t g = (BGCOLOR >> 16) & 0xFF;
+  uint8_t b = (BGCOLOR >> 8) & 0xFF;
+  uint8_t a = BGCOLOR & 0xFF;
+
+  for (int px = 0; px < PX_SZ; px++) {
+    uint32_t value = (cpu->screenBuf[px] > 1) ? 1 : cpu->screenBuf[px];
+    ((uint32_t *)pixels)[px] = ((FGCOLOR * value) | BGCOLOR);
+  }
+
+  SDL_UnlockTexture(texture);
+  SDL_SetRenderDrawColor(renderer, r, g, b, a);
+  SDL_RenderFillRect(renderer, &fill);
+  SDL_RenderTexture(renderer, texture, NULL, NULL);
+  SDL_RenderPresent(renderer);
 }
 
 void exitSDL() {
@@ -82,8 +110,14 @@ int main(int argc, const char *argv[]) {
         isRunning = false;
       }
     }
-  }
 
+    cpu_cycle();
+
+    if (cpu->drawFlag == 1) {
+      drawSDL();
+    }
+  }
+  cpu_cleanup();
   exitSDL();
   return 0;
 }
