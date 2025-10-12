@@ -74,7 +74,7 @@ void drawSDL() {
 
   for (int px = 0; px < PX_SZ; px++) {
     uint32_t value = (cpu->screenBuf[px] > 1) ? 1 : cpu->screenBuf[px];
-    ((uint32_t *)pixels)[px] = ((FGCOLOR * value) | BGCOLOR);
+    ((uint32_t *)pixels)[px] = (value) ? FGCOLOR : BGCOLOR;
   }
 
   SDL_UnlockTexture(texture);
