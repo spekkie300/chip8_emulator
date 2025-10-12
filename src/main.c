@@ -1,12 +1,16 @@
+#include "instructions.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define MEM_SZ (1 << 12) // max memory size 4096 adresses
+#define MEM_START 0x200
 #define SCR_W 64
 #define SCR_H 32
 
+int read_image_file(const char *rom);
+
 uint8_t memory[MEM_SZ];
-uint16_t memStart = 0x200;
 
 // Registers
 enum {
@@ -26,13 +30,13 @@ enum {
   R_VD,
   R_VE,
   R_VF,
-  R_D_TMR,
+  R_D_TMR, // TODO: Implement timers decreasing by 60hz when value != 0
   R_S_TMR,
 };
 uint8_t reg[R_S_TMR];
 uint8_t regSP = 0;
 uint16_t regI = 0;
-uint16_t regPC = 0;
+uint16_t regPC = 0; // TODO: Initialize regPC to MEM_START when initializing
 
 // Stack
 uint16_t stack[16];
@@ -73,9 +77,102 @@ void load_fontset() {
 int main(int argc, const char *argv[]) {
   if (argc < 2) {
     printf("Usage ./chip8 [image-file]... \n");
-    return 1;
+    return -1;
   };
 
-  // TODO: Load ROM: open file, read, load into memory, check for size, throw
-  // errors if things go wrong
+  read_image_file(argv[1]);
+  return 0;
+}
+
+int read_image_file(const char *rom) {
+  size_t romSize = 0;
+  unsigned char *rom_buf = NULL;
+  FILE *file = NULL;
+
+  file = fopen(rom, "rb");
+
+  if (file == NULL) {
+    printf("Error: Unable to open file(file == NULL) \n");
+    return -1;
+  }
+  if (fseek(file, 0, SEEK_END) != 0) {
+    printf("Error: Unable to find end of file \n");
+    fclose(file);
+    return -1;
+  }
+
+  romSize = ftell(file);
+  uint16_t maxRomSize = (MEM_SZ - MEM_START);
+
+  if (romSize <= 0) {
+    printf("Error: Romsize is zero or negative \n");
+    fclose(file);
+    return -1;
+  }
+
+  if (romSize >= maxRomSize) {
+    printf("Error: Rom is too big for memory \n");
+    fclose(file);
+    return -1;
+  }
+
+  if (fseek(file, 0, SEEK_SET) != 0) {
+    printf("Error: Could not set file pointer to begin \n");
+    fclose(file);
+    return -1;
+  }
+
+  rom_buf = calloc(romSize, sizeof(*rom_buf));
+  if (rom_buf == NULL) {
+    printf(
+        "Error: unable to allocate memory for rom buffer (rom_buf == NULL) \n");
+    fclose(file);
+    return -1;
+  }
+
+  if (fread(rom_buf, sizeof(*rom_buf), romSize, file) != romSize) {
+    size_t fread_result = fread(rom_buf, sizeof(*rom_buf), romSize, file);
+    printf("Size of Rom_buf: %zu \n", sizeof(*rom_buf));
+    printf("Romsize: %zu \n", romSize);
+    printf("fread_result: %zu \n", fread_result);
+    printf("Error: Reading rom went wrong(fread is not equal to romSize \n");
+    fclose(file);
+    free(rom_buf);
+    return -1;
+  }
+
+  for (size_t data = 0; data < romSize; data++) {
+    memory[MEM_START + data] = rom_buf[data];
+  }
+
+  free(rom_buf);
+  fclose(file);
+  printf("Rom succesfully loaded into memory! \n");
+  return 0;
+}
+
+uint16_t fetch_instruction(uint16_t programCounter) {
+  uint16_t instruction =
+      memory[programCounter] << 8 | memory[programCounter + 1];
+  programCounter += 2;
+  return instruction;
+}
+
+void decode_instructions(uint16_t instruction) {
+  uint16_t addr = (instruction & 0x0FFF);
+  uint16_t nibble = (instruction & 0x000F);
+  uint16_t x = (instruction & 0x0F00);
+  uint16_t y = (instruction & 0x00F0);
+  uint16_t byte = (instruction & 0x00FF);
+
+  switch (instruction & 0xF000) {
+  case 0x0000:
+    switch (byte) {
+    case 0x00E0:
+      // TODO: Need to implement SDL and get the screen functioning before
+      // continuing instructions
+      instr_00E0();
+      break;
+    }
+  }
 }
