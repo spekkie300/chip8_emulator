@@ -139,8 +139,6 @@ int main(int argc, const char *argv[]) {
   uint64_t prev_time = SDL_GetTicks();
   while (isRunning) {
 
-    printf("Mode: %b \n", cpu->quirky);
-
     detectInputSDL();
     cpu_cycle();
 
@@ -156,7 +154,6 @@ int main(int argc, const char *argv[]) {
     }
     prev_time = curr_time;
   }
-  printf("quirky mode: %b \n", cpu->quirky);
   cpu_cleanup();
   exitSDL();
   return 0;
