@@ -1,6 +1,9 @@
 #include "instructions.h"
 #include "cpu.h"
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <string.h>
 
 void fetch_instruction() {
@@ -8,6 +11,7 @@ void fetch_instruction() {
       cpu->memory[cpu->regPC] << 8 | cpu->memory[cpu->regPC + 1];
   cpu->regPC += 2;
   cpu->instruction = instruction;
+  // printf("Instruction: %x \n", instruction);
 }
 
 void exec_instructions() {
@@ -208,54 +212,63 @@ void instr_7XNN() { cpu->reg[X] += BYTE; }
 
 void instr_8XY0() { cpu->reg[X] = cpu->reg[Y]; }
 
-void instr_8XY1() { cpu->reg[X] |= cpu->reg[Y]; }
+void instr_8XY1() {
+  cpu->reg[X] |= cpu->reg[Y];
+  cpu->reg[VF] = 0;
+}
 
-void instr_8XY2() { cpu->reg[X] &= cpu->reg[Y]; }
+void instr_8XY2() {
+  cpu->reg[X] &= cpu->reg[Y];
+  cpu->reg[VF] = 0;
+}
 
-void instr_8XY3() { cpu->reg[X] ^= cpu->reg[Y]; }
+void instr_8XY3() {
+  cpu->reg[X] ^= cpu->reg[Y];
+  cpu->reg[VF] = 0;
+}
 
 void instr_8XY4() {
-  uint8_t sum = cpu->reg[X] + cpu->reg[Y];
+  uint16_t sum = cpu->reg[X] + cpu->reg[Y];
+  cpu->reg[X] = (sum & 0xFF);
   if (sum > 0xFF) {
     cpu->reg[VF] = 1;
+  } else {
+    cpu->reg[VF] = 0;
   }
-  cpu->reg[X] = sum;
 }
 
 void instr_8XY5() {
-  if (cpu->reg[X] > cpu->reg[Y]) {
-    cpu->reg[VF] = 1;
-  } else {
-    cpu->reg[VF] = 0;
-  }
+  uint8_t vf = cpu->reg[X] >= cpu->reg[Y];
   cpu->reg[X] -= cpu->reg[Y];
+  cpu->reg[VF] = vf;
 }
 
 void instr_8XY6() {
-  if (cpu->reg[X] & 0x01) {
-    cpu->reg[VF] = 1;
-  } else {
-    cpu->reg[VF] = 0;
+  if (cpu->quirky) {
+    // printf("quirky is set, shifting with Y value \n");
+    cpu->reg[X] = cpu->reg[Y];
   }
-  cpu->reg[X] /= 2;
+  uint8_t vf = cpu->reg[X] & 0x01 ? 1 : 0;
+  cpu->reg[X] >>= 1;
+  cpu->reg[VF] = vf;
 }
 
 void instr_8XY7() {
-  if (cpu->reg[Y] > cpu->reg[X]) {
-    cpu->reg[VF] = 1;
-  } else {
-    cpu->reg[VF] = 0;
+  uint8_t original_y = cpu->reg[Y]; // Store original Y value
+
+  if (cpu->quirky) {
+    cpu->reg[X] = cpu->reg[Y]; // Copy Y to X
   }
-  cpu->reg[X] = cpu->reg[Y] - cpu->reg[X];
+
+  uint8_t vf = cpu->reg[X] <= original_y;
+  cpu->reg[X] = original_y - cpu->reg[X];
+  cpu->reg[VF] = vf;
 }
 
 void instr_8XYE() {
-  if (cpu->reg[X] & 0x80) {
-    cpu->reg[VF] = 1;
-  } else {
-    cpu->reg[VF] = 0;
-  }
-  cpu->reg[X] *= 2;
+  uint8_t vf = cpu->reg[X] & 0x80 ? 1 : 0;
+  cpu->reg[X] <<= 1;
+  cpu->reg[VF] = vf;
 }
 
 void instr_9XY0() {
@@ -268,9 +281,7 @@ void instr_ANNN() { cpu->regI = ADDR; }
 
 void instr_BNNN() { cpu->regPC = (ADDR + cpu->reg[V0]); }
 
-void instr_CXNN() {
-  // TODO: do this one later, needs random number
-}
+void instr_CXNN() { cpu->reg[X] = (cpu->randNum = rand()) & BYTE; }
 
 void instr_DXYN() {
   uint8_t xCoordinate = (cpu->reg[X] & 63);
@@ -300,17 +311,32 @@ void instr_DXYN() {
 }
 
 void instr_EX9E() {
-  // TODO: need to implement SDL keyreading first i suppose
+  if (cpu->keyStates[cpu->reg[X]]) {
+    cpu->regPC += 2;
+  }
 }
 
 void instr_EXA1() {
-  // TODO: Same thing here, needs sdl input to be functioning
+  if (!cpu->keyStates[cpu->reg[X]]) {
+    cpu->regPC += 2;
+  }
 }
 
 void instr_FX07() { cpu->reg[X] = cpu->regDT; }
 
 void instr_FX0A() {
-  // TODO: wait for keypress, so pause(needs SDL), then store value of key in Vx
+  int key_pressed = -1;
+  for (int i = 0; i < KEY_SZ; i++) {
+    if (cpu->keyStates[i] == 1) {
+      key_pressed = i;
+      break;
+    }
+  }
+  if (key_pressed != -1) {
+    cpu->reg[X] = key_pressed;
+  } else {
+    cpu->regPC -= 2;
+  }
 }
 
 void instr_FX15() { cpu->regDT = cpu->reg[X]; }
@@ -319,4 +345,32 @@ void instr_FX18() { cpu->regST = cpu->reg[X]; }
 
 void instr_FX1E() { cpu->regI += cpu->reg[X]; }
 
-void instr_FX29() {}
+void instr_FX29() {
+  int offset = cpu->reg[X] * 5;
+  cpu->regI = (offset + 0x50);
+}
+
+void instr_FX33() {
+  uint8_t num = cpu->reg[X];
+  uint8_t hundreds = num / 100;
+  uint8_t tens = (num / 10) % 10;
+  uint8_t singles = num % 10;
+
+  cpu->memory[cpu->regI] = hundreds;
+  cpu->memory[cpu->regI + 1] = tens;
+  cpu->memory[cpu->regI + 2] = singles;
+}
+
+void instr_FX55() {
+  for (int i = 0; i <= X; i++) {
+    cpu->memory[cpu->regI] = cpu->reg[i];
+    cpu->regI += 1;
+  }
+}
+
+void instr_FX65() {
+  for (int i = 0; i <= X; i++) {
+    cpu->reg[i] = cpu->memory[cpu->regI];
+    cpu->regI += 1;
+  }
+}

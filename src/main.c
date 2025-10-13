@@ -1,17 +1,16 @@
 #include "cpu.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <stdbool.h>
 #include <stdio.h>
 
-#define BGCOLOR 0x6495EDFF
-#define FGCOLOR 0xF4D570FF
+#define BGCOLOR 0x000000FF
+#define FGCOLOR 0xFFFFFFFF
 
+static const SDL_Keycode key_map[KEY_SZ] = {
+    SDLK_X, SDLK_1, SDLK_2, SDLK_3, SDLK_Q, SDLK_W, SDLK_E, SDLK_A,
+    SDLK_S, SDLK_D, SDLK_Z, SDLK_C, SDLK_4, SDLK_R, SDLK_F, SDLK_V};
 // Keymap used later to compare input events
-// TODO: Implement SDL input polling and compoare it based on scancode
-SDL_Keycode key_map[16] = {SDLK_1, SDLK_2, SDLK_3, SDLK_4, SDLK_Q, SDLK_W,
-                           SDLK_E, SDLK_R, SDLK_A, SDLK_S, SDLK_D, SDLK_F,
-                           SDLK_Z, SDLK_X, SDLK_C, SDLK_V};
-
 SDL_Window *window;
 SDL_Renderer *renderer;
 SDL_Texture *texture;
@@ -84,6 +83,31 @@ void drawSDL() {
   SDL_RenderPresent(renderer);
 }
 
+void detectInputSDL() {
+  SDL_Event e;
+  while (SDL_PollEvent(&e)) {
+    switch (e.type) {
+    case SDL_EVENT_QUIT:
+      isRunning = 0;
+      break;
+    case SDL_EVENT_KEY_DOWN:
+    case SDL_EVENT_KEY_UP:
+      // Handle key events directly
+      for (int key = 0; key < KEY_SZ; key++) {
+        if (e.key.key == key_map[key]) {
+          cpu->keyStates[key] = (e.type == SDL_EVENT_KEY_DOWN) ? 1 : 0;
+          break;
+        }
+      }
+      // Handle escape key
+      if (e.key.key == SDLK_ESCAPE && e.type == SDL_EVENT_KEY_DOWN) {
+        isRunning = 0;
+      }
+      break;
+    }
+  }
+}
+
 void exitSDL() {
   SDL_DestroyTexture(texture);
   SDL_DestroyRenderer(renderer);
@@ -93,7 +117,7 @@ void exitSDL() {
 
 int main(int argc, const char *argv[]) {
   if (argc < 2) {
-    printf("Usage ./chip8 [image-file]... \n");
+    printf("Usage ./chip8 <image-file> [-m]  \n");
     return -1;
   };
 
@@ -101,22 +125,34 @@ int main(int argc, const char *argv[]) {
     cpu_init();
     read_image_file(argv[1]);
     isRunning = 1;
+    cpu->isPaused = 0;
   }
 
-  while (isRunning) {
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_EVENT_QUIT) {
-        isRunning = false;
-      }
-    }
+  if (argc == 2 && !strcmp(argv[1], "-m")) {
+    cpu->quirky = false;
+  } else {
+    cpu->quirky = true;
+  }
 
+  uint64_t prev_time = SDL_GetTicks();
+  while (isRunning) {
+
+    detectInputSDL();
     cpu_cycle();
 
     if (cpu->drawFlag == 1) {
       drawSDL();
+      cpu->drawFlag = 0;
     }
+
+    uint64_t curr_time = SDL_GetTicks();
+    uint64_t elapsed_time = curr_time - prev_time;
+    if (elapsed_time < 4) {
+      SDL_Delay(4 - elapsed_time);
+    }
+    prev_time = curr_time;
   }
+  printf("quirky mode: %b \n", cpu->quirky);
   cpu_cleanup();
   exitSDL();
   return 0;

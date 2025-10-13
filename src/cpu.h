@@ -1,8 +1,8 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include <stdbool.h>
 #include <stdint.h>
-
 #define ADDR (cpu->instruction & 0x0FFF)
 #define NIBBLE (cpu->instruction & 0x000F)
 #define X ((cpu->instruction & 0x0F00) >> 8)
@@ -18,6 +18,7 @@
 #define SCALE 20
 #define REG_SZ 16
 #define STCK_SZ 16
+#define KEY_SZ 16
 #define FONT_SZ 80
 
 // Register Enum
@@ -50,8 +51,12 @@ typedef struct {
   uint16_t regPC;
   uint16_t stack[STCK_SZ];
   uint16_t screenBuf[PX_SZ];
+  uint8_t keyStates[KEY_SZ];
   uint8_t drawFlag;
   uint16_t instruction;
+  uint8_t randNum;
+  uint8_t isPaused;
+  bool quirky;
 } chip_cpu;
 extern chip_cpu *cpu;
 

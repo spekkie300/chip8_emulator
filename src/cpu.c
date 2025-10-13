@@ -35,6 +35,7 @@ void cpu_init() {
 
   load_fontset();
   cpu->regPC = MEM_START;
+  cpu->randNum = rand();
 }
 
 int read_image_file(const char *rom) {
@@ -122,8 +123,14 @@ void load_fontset() {
 }
 
 void cpu_cycle() {
-  fetch_instruction();
+  if (!cpu->isPaused) {
+    fetch_instruction();
+  }
   exec_instructions();
+
+  if (cpu->regDT > 0) {
+    cpu->regDT--;
+  }
 }
 
 void cpu_cleanup() {
