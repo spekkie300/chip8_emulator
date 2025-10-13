@@ -124,18 +124,22 @@ int main(int argc, const char *argv[]) {
   if (initSDL() == 1) {
     cpu_init();
     read_image_file(argv[1]);
-    isRunning = 1;
     cpu->isPaused = 0;
   }
 
-  if (argc == 2 && !strcmp(argv[1], "-m")) {
+  if (argc == 3 && !strcmp(argv[2], "-m")) {
+    printf("-m flag set, starting in modern mode \n");
     cpu->quirky = false;
   } else {
     cpu->quirky = true;
   }
 
+  isRunning = 1;
+
   uint64_t prev_time = SDL_GetTicks();
   while (isRunning) {
+
+    printf("Mode: %b \n", cpu->quirky);
 
     detectInputSDL();
     cpu_cycle();
@@ -147,8 +151,8 @@ int main(int argc, const char *argv[]) {
 
     uint64_t curr_time = SDL_GetTicks();
     uint64_t elapsed_time = curr_time - prev_time;
-    if (elapsed_time < 4) {
-      SDL_Delay(4 - elapsed_time);
+    if (elapsed_time < 16) {
+      SDL_Delay(16 - elapsed_time);
     }
     prev_time = curr_time;
   }

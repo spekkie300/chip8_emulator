@@ -244,31 +244,31 @@ void instr_8XY5() {
 }
 
 void instr_8XY6() {
-  if (cpu->quirky) {
-    // printf("quirky is set, shifting with Y value \n");
+  if (cpu->quirky == 1) {
     cpu->reg[X] = cpu->reg[Y];
   }
-  uint8_t vf = cpu->reg[X] & 0x01 ? 1 : 0;
+  uint16_t result = (cpu->reg[X] % 2);
   cpu->reg[X] >>= 1;
-  cpu->reg[VF] = vf;
+  cpu->reg[VF] = result;
 }
 
 void instr_8XY7() {
-  uint8_t original_y = cpu->reg[Y]; // Store original Y value
-
-  if (cpu->quirky) {
-    cpu->reg[X] = cpu->reg[Y]; // Copy Y to X
+  uint8_t result = cpu->reg[Y] - cpu->reg[X];
+  cpu->reg[X] = result;
+  if (cpu->reg[Y] > cpu->reg[X]) {
+    cpu->reg[VF] = 1;
+  } else {
+    cpu->reg[VF] = 0;
   }
-
-  uint8_t vf = cpu->reg[X] <= original_y;
-  cpu->reg[X] = original_y - cpu->reg[X];
-  cpu->reg[VF] = vf;
 }
 
 void instr_8XYE() {
-  uint8_t vf = cpu->reg[X] & 0x80 ? 1 : 0;
+  if (cpu->quirky == 1) {
+    cpu->reg[X] = cpu->reg[Y];
+  }
+  uint8_t result = (cpu->reg[X] & 0x80) >> 0x7;
   cpu->reg[X] <<= 1;
-  cpu->reg[VF] = vf;
+  cpu->reg[VF] = result;
 }
 
 void instr_9XY0() {
@@ -290,7 +290,8 @@ void instr_DXYN() {
 
   for (int i = 0; i < NIBBLE; i++) {
     uint8_t spriteByte = cpu->memory[cpu->regI + i];
-    if ((yCoordinate + NIBBLE) >= SCR_H) {
+    if ((yCoordinate + i) >= SCR_H) {
+      cpu->reg[VF] = 1;
       break;
     }
     for (int xBits = 0; xBits < 8; xBits++) {
