@@ -7,6 +7,7 @@ Build by running Cmake and Make commands
 
 ### Command:
 `./chip8 <path/to/rom.ch8> [-m]`
+
 By using the -m flag the emulator will run in Modern mode where certain opcodes will behave differently, use it if a modern game isn't behaving as it's supposed to.
 
 ### Controls:
