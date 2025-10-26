@@ -149,8 +149,8 @@ int main(int argc, const char *argv[]) {
 
     uint64_t curr_time = SDL_GetTicks();
     uint64_t elapsed_time = curr_time - prev_time;
-    if (elapsed_time < 16) {
-      SDL_Delay(16 - elapsed_time);
+    if (elapsed_time < 6) {
+      SDL_Delay(6 - elapsed_time);
     }
     prev_time = curr_time;
   }
